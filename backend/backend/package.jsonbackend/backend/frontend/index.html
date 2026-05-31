@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>✈️ Travel Planning Engine</title>
+  <style>
+    * { font-family: Arial; margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1200px; margin: auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    h1 { color: #333; margin-bottom: 10px; text-align: center; font-size: 2.5em; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+    .form-container { background: #f8f9fa; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
+    .form-group { margin: 15px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+    input, select { width: 100%; padding: 12px; margin: 5px 0; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.3s; }
+    input:focus, select:focus { outline: none; border-color: #667eea; }
+    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 40px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 15px; transition: transform 0.2s; }
+    button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .itinerary { margin-top: 30px; }
+    .itinerary h2 { color: #333; margin-bottom: 20px; }
+    .day-card { border-left: 5px solid #667eea; padding: 20px; margin: 15px 0; border-radius: 6px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+    .day-card h3 { color: #667eea; margin-bottom: 15px; }
+    .activity { padding: 12px; background: white; margin: 8px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .activity-name { font-weight: bold; color: #333; }
+    .activity-time { color: #999; font-size: 0.9em; }
+    .activity-cost { color: #28a745; font-weight: bold; }
+    .day-total { margin-top: 12px; padding-top: 12px; border-top: 2px solid #ddd; font-weight: bold; color: #667eea; }
+    .trips-list { margin-top: 30px; }
+    .trips-list h3 { color: #333; margin-bottom: 15px; }
+    .trip-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    .trip-card strong { font-size: 1.1em; }
+    .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; margin: 15px 0; border: 1px solid #f5c6cb; }
+    .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin: 15px 0; border: 1px solid #c3e6cb; }
+    .loading { display: none; text-align: center; padding: 20px; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✈️ Travel Planning Engine</h1>
+    <p class="subtitle">Plan your perfect trip with AI-powered itineraries</p>
+    
+    <div class="form-container">
+      <h2>Create Your Trip</h2>
+      
+      <div class="form-group">
+        <label>🌍 Destination:</label>
+        <select id="destination">
+          <option>Paris</option>
+          <option>New York</option>
+          <option>Tokyo</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>📅 Start Date:</label>
+        <input type="date" id="startDate">
+      </div>
+
+      <div class="form-group">
+        <label>📅 End Date:</label>
+        <input type="date" id="endDate">
+      </div>
+
+      <div class="form-group">
+        <label>💰 Budget ($):</label>
+        <input type="number" id="budget" value="2000" min="100" max="100000">
+      </div>
+
+      <button onclick="generateTrip()" id="generateBtn">🚀 Generate Itinerary</button>
+      
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Generating your perfect itinerary...</p>
+      </div>
+    </div>
+
+    <div id="message"></div>
+    <div id="itinerary" class="itinerary"></div>
+    <div id="trips" class="trips-list"></div>
+  </div>
+
+  <script>
+    let trips = [];
+
+    async function generateTrip() {
+      const destination = document.getElementById('destination').value;
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const budget = parseInt(document.getElementById('budget').value);
+
+      if (!startDate || !endDate) {
+        showMessage('Please select both start and end dates!', 'error');
+        return;
+      }
+
+      if (new Date(endDate) <= new Date(startDate)) {
+        showMessage('End date must be after start date!', 'error');
+        return;
+      }
+
+      const data = { destination, startDate, endDate, budget };
+
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('generateBtn').disabled = true;
+
+      try {
+        // Create trip
+        const res1 = await fetch('http://localhost:5000/api/trips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!res1.ok) throw new Error('Backend not responding');
+        
+        const trip = await res1.json();
+
+        // Generate itinerary
+        const res2 = await fetch(`http://localhost:5000/api/trips/${trip.id}/itinerary`, {
+          method: 'POST'
+        });
+
+        const itinData = await res2.json();
+
+        // Display itinerary
+        let html = `<h2>🗺️ Your ${destination} Itinerary</h2>`;
+        let totalCost = 0;
+
+        itinData.itinerary.forEach(day => {
+          html += `<div class="day-card">
+            <h3>Day ${day.day}</h3>`;
+          
+          day.activities.forEach(act => {
+            html += `<div class="activity">
+              <div>
+                <div class="activity-time">${act.time}</div>
+                <div class="activity-name">${act.name}</div>
+              </div>
+              <div class="activity-cost">$${act.cost}</div>
+            </div>`;
+            totalCost += act.cost;
+          });
+          
+          html += `<p class="day-total">💰 Day ${day.day} Total: $${day.cost}</p></div>`;
+        });
+
+        html += `<p style="margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #667eea;">💳 Total Trip Cost: $${totalCost}</p>`;
+        document.getElementById('itinerary').innerHTML = html;
+
+        // Add to trips list
+        trips.unshift(trip);
+        updateTripsList();
+        showMessage(`✅ Itinerary generated successfully for ${destination}!`, 'success');
+      } catch (error) {
+        showMessage('❌ Error: Make sure backend is running on http://localhost:5000', 'error');
+        console.error(error);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+      }
+    }
+
+    function updateTripsList() {
+      if (trips.length === 0) return;
+      
+      let html = `<h3>📝 Your Trips (${trips.length})</h3>`;
+      trips.forEach((trip, idx) => {
+        html += `<div class="trip-card">
+          <strong>#${idx + 1} - ${trip.destination}</strong><br>
+          📅 ${trip.startDate} to ${trip.endDate}<br>
+          💰 Budget: $${trip.budget}
+        </div>`;
+      });
+      document.getElementById('trips').innerHTML = html;
+    }
+
+    function showMessage(msg, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.innerHTML = `<div class="${type}">${msg}</div>`;
+      setTimeout(() => { messageDiv.innerHTML = ''; }, 5000);
+    }
+
+    // Set today as minimum date
+    document.getElementById('startDate').min = new Date().toISOString().split('T')[0];
+    document.getElementById('endDate').min = new Date().toISOString().split('T')[0];
+  </script>
+</body>
+</html>
